@@ -22,7 +22,7 @@ int main(int argc, char ** argv)
   Calc.AddFunction([](int x){ std::this_thread::sleep_for(5s); return x + 4; });
   Calc.SetBinaryOp([](int x, int y){ return x * y; });
 
-  signal(SIGINT, &CancelCb);
+  std::signal(SIGINT, &CancelCb);
 
   if (argc != 2)
   {

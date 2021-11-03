@@ -6,7 +6,7 @@
 template <typename T>
 struct Synchronized
 {
-  T Value{};
+  T Value = 0;
   std::mutex Mutex;
 };
 

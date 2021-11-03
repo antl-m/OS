@@ -2,25 +2,30 @@
 #define OSLAB1_CALCULATOR_H
 
 #include "Synchronized.h"
+#include "ConditionVariable.h"
+#include "compfuncs.hpp"
 
 #include <latch>
 #include <functional>
 
-template<typename T>
+template<typename T, typename U = T>
 class Calculator
 {
 public:
 
-  using FunctionT = std::function<T(T)>;
-  using BinaryOpT = std::function<T(T, T)>;
+  using ParamT = U;
+  using ValueT = typename os::lab1::compfuncs::op_group_type_traits<T>::value_type;
+  using ResultT = typename os::lab1::compfuncs::op_group_type_traits<T>::result_type;
 
-  T Compute(
-      T x
+  using FunctionT = std::function<ResultT(ParamT)>;
+  using BinaryOpT = std::function<ValueT(ValueT, ValueT)>;
+
+  ValueT Compute(
+      ParamT x
     )
   {
     Synchronized<T> Result;
-    m_LatchCount = m_Functions.size();
-    m_WaitLatch.emplace(m_LatchCount);
+    m_ConditionVariable.SetCounter(m_Functions.size());
     bool IsFirstComputed = true;
 
     auto StartPoint = std::chrono::steady_clock::now();
@@ -29,12 +34,17 @@ public:
       std::thread Thread([&]{
         try
         {
-          T PartialResult = Function(x);
+          ResultT PartialResult = Function(x);
+          if (PartialResult.index() != 2)
+          {
+            std::stringstream ss;
+            ss << PartialResult;
+            throw std::runtime_error(ss.str());
+          }
           std::lock_guard Guard(Result.Mutex);
-          Result.Value = (IsFirstComputed ? PartialResult : m_BinaryOp(Result.Value, PartialResult));
+          Result.Value = (IsFirstComputed ? std::get<2>(PartialResult) : m_BinaryOp(Result.Value, std::get<2>(PartialResult)));
           IsFirstComputed = false;
-          --m_LatchCount;
-          m_WaitLatch->count_down();
+          m_ConditionVariable.Decrease();
         }
         catch (const std::exception & e)
         {
@@ -43,13 +53,13 @@ public:
           {
             m_WasExceptionThrown.Value = true;
             m_ExceptionStr = e.what();
-            m_WaitLatch->count_down(m_LatchCount);
+            m_ConditionVariable.Free();
           }
         }
       });
       Thread.detach();
     }
-    m_WaitLatch->wait();
+    m_ConditionVariable.Wait();
     auto Diff = std::chrono::steady_clock::now() - StartPoint;
     m_Time = std::chrono::duration_cast<std::chrono::milliseconds>(Diff).count();
 
@@ -81,7 +91,7 @@ public:
     if (!m_WasCancelConfirmed.Value)
     {
       m_WasCancelConfirmed.Value = true;
-      m_WaitLatch->count_down(m_LatchCount);
+      m_ConditionVariable.Free();
     }
   }
 
@@ -100,9 +110,24 @@ public:
     return m_ExceptionStr;
   }
 
+  void Clear()
+  {
+    m_Functions.clear();
+    m_BinaryOp = {};
+    Reset();
+  }
+
+  void Reset()
+  {
+    m_ConditionVariable.SetCounter(0);
+    m_WasCancelConfirmed.Value = false;
+    m_WasExceptionThrown.Value = false;
+    m_ExceptionStr.clear();
+    m_Time = 0;
+  }
+
 private:
-  std::optional<std::latch> m_WaitLatch;
-  std::atomic_ptrdiff_t m_LatchCount;
+  ConditionVariable m_ConditionVariable;
   std::vector<FunctionT> m_Functions;
   BinaryOpT m_BinaryOp;
   Synchronized<bool> m_WasCancelConfirmed;
