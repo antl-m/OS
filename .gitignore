@@ -34,3 +34,8 @@
 # Local
 .idea
 cmake-build-*
+Summary-Processes
+Summary-Results
+*.class
+out
+stdout.txt
