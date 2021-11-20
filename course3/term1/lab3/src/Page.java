@@ -8,6 +8,7 @@ public class Page
   public int lastTouchTime;
   public long high;
   public long low;
+  public int accessCounter = 0;
 
   public Page( int id, int physical, byte R, byte M, int inMemTime, int lastTouchTime, long high, long low ) 
   {

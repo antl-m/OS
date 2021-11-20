@@ -52,8 +52,8 @@ public class PageFault {
   public static void replacePage ( Vector mem , int virtPageNum , int replacePageNum , ControlPanel controlPanel ) 
   {
     int count = 0;
-    int oldestPage = -1;
-    int oldestTime = 0;
+    int lessAccessedPage = -1;
+    int lessAccesses = Integer.MAX_VALUE;
     int firstPage = -1;
     int map_count = 0;
     boolean mapped = false;
@@ -64,9 +64,9 @@ public class PageFault {
         if (firstPage == -1) {
           firstPage = count;
         }
-        if (page.inMemTime > oldestTime) {
-          oldestTime = page.inMemTime;
-          oldestPage = count;
+        if (page.accessCounter < lessAccesses) {
+          lessAccesses = page.accessCounter;
+          lessAccessedPage = count;
           mapped = true;
         }
       }
@@ -75,12 +75,12 @@ public class PageFault {
         mapped = true;
       }
     }
-    if (oldestPage == -1) {
-      oldestPage = firstPage;
+    if (lessAccessedPage == -1) {
+      lessAccessedPage = firstPage;
     }
-    Page page = ( Page ) mem.elementAt( oldestPage );
+    Page page = ( Page ) mem.elementAt( lessAccessedPage );
     Page nextpage = ( Page ) mem.elementAt( replacePageNum );
-    controlPanel.removePhysicalPage( oldestPage );
+    controlPanel.removePhysicalPage( lessAccessedPage );
     nextpage.physical = page.physical;
     controlPanel.addPhysicalPage( nextpage.physical , replacePageNum );
     page.inMemTime = 0;

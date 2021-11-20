@@ -417,6 +417,7 @@ public class Kernel extends Thread
     if ( instruct.inst.startsWith( "READ" ) ) 
     {
       Page page = ( Page ) memVector.elementAt( Virtual2Physical.pageNum( instruct.addr , virtPageNum , block ) );
+      page.accessCounter++;
       if ( page.physical == -1 ) 
       {
         if ( doFileLog )
@@ -447,6 +448,7 @@ public class Kernel extends Thread
     if ( instruct.inst.startsWith( "WRITE" ) ) 
     {
       Page page = ( Page ) memVector.elementAt( Virtual2Physical.pageNum( instruct.addr , virtPageNum , block ) );
+      page.accessCounter++;
       if ( page.physical == -1 ) 
       {
         if ( doFileLog )
